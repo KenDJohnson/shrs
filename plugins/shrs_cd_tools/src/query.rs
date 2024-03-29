@@ -1,22 +1,14 @@
 //! Scan file system to match project type
 
-use std::{
-    any::{Any, TypeId},
-    collections::HashMap,
-    ffi::OsString,
-    fs,
-    marker::PhantomData,
-    path::Path,
-};
+use std::{collections::HashMap, ffi::OsString, fs, path::Path};
 
 use anymap::AnyMap;
-use multimap::MultiMap;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use serde_json::Value;
+
 use shrs::anyhow;
 
 #[derive(Builder)]
 #[builder(pattern = "owned")]
+#[allow(dead_code)]
 pub struct Query {
     /// Required files (exact match)
     #[builder(default = "Vec::new()")]

@@ -5,17 +5,17 @@ use std::{
     process::Command,
 };
 
-use ::crossterm::style::{Attribute, Color, StyledContent};
+use ::anyhow::{anyhow, Context as _};
 use shrs::{
     history::FileBackedHistory,
     keybindings,
-    prelude::{cursor_buffer::CursorBuffer, styled_buf::StyledBuf, *},
+    prelude::{styled_buf::StyledBuf, *},
 };
 use shrs_cd_stack::{CdStackPlugin, CdStackState};
 use shrs_cd_tools::git;
 use shrs_command_timer::{CommandTimerPlugin, CommandTimerState};
 use shrs_file_logger::{FileLogger, LevelFilter};
-use shrs_mux::{BashLang, MuxPlugin, MuxState, NuLang, PythonLang, SshLang};
+use shrs_mux::{BashLang, MuxPlugin, MuxState, NuLang, PythonLang};
 use shrs_output_capture::OutputCapturePlugin;
 use shrs_rhai::RhaiPlugin;
 use shrs_rhai_completion::CompletionsPlugin;
@@ -71,13 +71,15 @@ impl Prompt for MyPrompt {
     }
 }
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     let logger = FileLogger {
         path: PathBuf::from("/tmp/shrs_log"),
         level: LevelFilter::Debug,
     };
 
-    logger.init().expect("Failed initializing file logger");
+    logger
+        .init()
+        .with_context(|| anyhow!("Failed initializing file logger"))?;
 
     let _out = BufWriter::new(stdout());
 
@@ -85,14 +87,17 @@ fn main() {
     // Initialize the directory we will be using to hold our configuration and metadata files
     let config_dir = dirs::home_dir().unwrap().as_path().join(".config/shrs");
     // also log when creating dir
-    // TODO ignore errors for now (we dont care if dir already exists)
-    fs::create_dir_all(config_dir.clone());
+    if !config_dir.exists() {
+        fs::create_dir_all(&config_dir)
+            .with_context(|| anyhow!("failed to create config dir {config_dir:?}"))?;
+    }
 
     // =-=-= Environment variables =-=-=
     // Load environment variables from calling shell
     let mut env = Env::default();
-    env.load();
-    env.set("SHELL_NAME", "shrs_example");
+    env.load().with_context(|| anyhow!("failed to load env"))?;
+    env.set("SHELL_NAME", "shrs_example")
+        .with_context(|| anyhow!("failed to set SHELL_NAME"))?;
 
     let builtins = Builtins::default();
 
@@ -115,13 +120,15 @@ fn main() {
     // =-=-= History =-=-=
     // Use history that writes to file on disk
     let history_file = config_dir.as_path().join("history");
-    let history = FileBackedHistory::new(history_file).expect("Could not open history file");
+    let history = FileBackedHistory::new(history_file.clone())
+        .with_context(|| anyhow!("Could not open history file {history_file:?}"))?;
 
     // =-=-= Keybindings =-=-=
     // Add basic keybindings
+    #[allow(unused_variables)]
     let keybinding = keybindings! {
         |sh, ctx, rt|
-        "C-l" => ("Clear the screen", { Command::new("clear").spawn()}),
+        "C-l" => ("Clear the screen", { Command::new("clear").spawn().expect("failed clear") }),
         "C-p" => ("Move up one in the command history", {
             if let Some(state) = ctx.state.get_mut::<CdStackState>() {
                 if let Some(new_path) = state.down() {
@@ -148,7 +155,7 @@ fn main() {
         .with_menu(menu)
         .with_prompt(prompt)
         .build()
-        .expect("Could not construct readline");
+        .with_context(|| anyhow!("Could not construct readline"))?;
 
     // =-=-= Aliases =-=-=
     // Set aliases
@@ -209,7 +216,8 @@ a rusty POSIX shell | build {}"#,
         .with_plugin(RhaiPlugin)
         .with_plugin(CompletionsPlugin)
         .build()
-        .expect("Could not construct shell");
+        .with_context(|| anyhow!("Could not construct shell"))?;
 
-    myshell.run().unwrap();
+    myshell.run()?;
+    Ok(())
 }

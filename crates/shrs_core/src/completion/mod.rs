@@ -9,6 +9,7 @@ mod utils;
 pub use utils::*;
 
 mod data;
+pub use data::{git_action, git_flag_action};
 
 /// How should the completion be substituted
 #[derive(Copy, Clone, Debug)]

@@ -1,7 +1,4 @@
 //! Core functionality of shrs
-#[macro_use]
-extern crate derive_builder;
-extern crate lazy_static;
 
 pub mod alias;
 pub mod builtin;

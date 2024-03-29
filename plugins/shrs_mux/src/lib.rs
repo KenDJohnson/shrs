@@ -3,11 +3,7 @@ mod interpreter;
 mod lang;
 mod lang_options;
 
-use std::{
-    cell::RefCell,
-    collections::{HashMap, HashSet},
-    rc::Rc,
-};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use anyhow::anyhow;
 use builtin::MuxBuiltin;
@@ -18,8 +14,6 @@ use shrs::{
     lang::{Lexer, Token},
     prelude::*,
 };
-
-use crate::interpreter::{read_err, read_out};
 
 pub struct MuxState {
     current_lang: (String, Rc<dyn Lang>),
@@ -71,11 +65,13 @@ impl MuxState {
 
 #[derive(Clone)]
 /// Hook that emitted when the language is changed
+#[allow(dead_code)]
 pub struct ChangeLangCtx {
     old_lang: String,
     new_lang: String,
 }
 
+#[allow(dead_code)]
 pub struct MuxPlugin {
     lang_options: LangOptions,
     // TODO kinda stupid but need to pass ownership to state
@@ -141,7 +137,7 @@ impl Lang for MuxLang {
             return Ok(CmdOutput::error());
         };
 
-        let (lang_name, lang) = state.current_lang();
+        let (_lang_name, lang) = state.current_lang();
         lang.eval(sh, ctx, rt, cmd)
     }
 

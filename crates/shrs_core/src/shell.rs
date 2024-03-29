@@ -2,10 +2,8 @@
 
 use std::{
     cell::RefCell,
-    collections::VecDeque,
     env,
     path::{Path, PathBuf},
-    process::ExitStatus,
     time::Instant,
 };
 

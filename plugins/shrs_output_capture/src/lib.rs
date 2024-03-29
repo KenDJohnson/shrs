@@ -3,8 +3,6 @@
 //!
 mod builtin;
 
-use std::{os::unix::process::ExitStatusExt, process::ExitStatus};
-
 use builtin::AgainBuiltin;
 use shrs::prelude::*;
 

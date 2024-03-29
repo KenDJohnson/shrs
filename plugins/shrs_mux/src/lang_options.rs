@@ -7,6 +7,7 @@ use shrs::{
 
 use crate::ChangeLangCtx;
 
+#[allow(dead_code)]
 pub struct LangOptions {
     highlighters: HashMap<String, Box<dyn Highlighter>>,
 }
@@ -22,10 +23,10 @@ impl Default for LangOptions {
     }
 }
 pub(crate) fn swap_lang_options(
-    sh: &Shell,
-    sh_ctx: &mut Context,
-    sh_rt: &mut Runtime,
-    ctx: &ChangeLangCtx,
+    _sh: &Shell,
+    _sh_ctx: &mut Context,
+    _sh_rt: &mut Runtime,
+    _ctx: &ChangeLangCtx,
 ) -> anyhow::Result<()> {
     Ok(())
 }

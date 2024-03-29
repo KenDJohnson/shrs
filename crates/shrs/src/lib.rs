@@ -18,9 +18,6 @@
 //! For more advanced explanation on features and configuration options, see the [shrs book](mrpicklepinosaur.github.io/shrs/)
 //!
 
-#[macro_use]
-extern crate derive_builder;
-
 pub use shrs_core::*;
 
 pub mod lang {
@@ -50,5 +47,5 @@ pub mod prelude {
     pub use shrs_core::prelude::*;
     pub use shrs_utils::*;
 
-    pub use crate::{anyhow, crossterm, crossterm::*, plugin::*, readline::*, shell::*};
+    pub use crate::{anyhow, crossterm, crossterm::*, shell::*};
 }

@@ -1,25 +1,14 @@
-use std::{
-    io::Write,
-    process::Stdio,
-    sync::{Arc, OnceLock},
-};
+use std::{io::Write, process::Stdio, sync::OnceLock};
 
 use shrs::prelude::*;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter},
-    process::{Child, ChildStdin, ChildStdout, Command},
+    process::{Child, Command},
     runtime,
-    sync::{
-        mpsc::{self, Sender},
-        RwLock,
-    },
+    sync::mpsc::{self, Sender},
 };
 
-use crate::{
-    interpreter::{read_err, read_out},
-    MuxState,
-};
-
+#[allow(dead_code)]
 struct PythonLangCtx {
     /// Channel for writing to process
     write_tx: Sender<String>,
@@ -100,9 +89,9 @@ impl PythonLang {
 impl Lang for PythonLang {
     fn eval(
         &self,
-        sh: &Shell,
-        ctx: &mut Context,
-        rt: &mut Runtime,
+        _sh: &Shell,
+        _ctx: &mut Context,
+        _rt: &mut Runtime,
         cmd: String,
     ) -> shrs::anyhow::Result<CmdOutput> {
         let lang_ctx = self
@@ -120,7 +109,7 @@ impl Lang for PythonLang {
         "python".to_string()
     }
 
-    fn needs_line_check(&self, cmd: String) -> bool {
+    fn needs_line_check(&self, _cmd: String) -> bool {
         false
     }
 }

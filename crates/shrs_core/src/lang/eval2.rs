@@ -8,6 +8,7 @@ use shrs_lang::ast;
 
 use crate::lang::posix_lang::PosixError;
 
+#[allow(dead_code)]
 pub struct Os {
     _job_manager: JobManager,
     /// Exit status of last command executed.

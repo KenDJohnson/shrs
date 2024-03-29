@@ -1,23 +1,12 @@
 use std::{
     cell::RefCell,
-    collections::HashMap,
-    fmt::format,
-    io::{BufRead, BufReader, Read, Write},
-    ops::Add,
-    os::unix::process::ExitStatusExt,
-    process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, ExitStatus, Stdio},
-    sync::Arc,
+    io::{BufReader, Write},
+    process::{Child, Command, Stdio},
 };
 
-use shrs::{
-    lang::{Lexer, Token},
-    prelude::*,
-};
+use shrs::prelude::*;
 
-use crate::{
-    interpreter::{read_err, read_out},
-    MuxState,
-};
+use crate::interpreter::{read_err, read_out};
 
 pub struct BashLang {
     instance: RefCell<Child>,
@@ -41,7 +30,7 @@ impl BashLang {
 impl Lang for BashLang {
     fn eval(
         &self,
-        sh: &Shell,
+        _sh: &Shell,
         ctx: &mut Context,
         rt: &mut Runtime,
         cmd: String,
@@ -80,7 +69,7 @@ impl Lang for BashLang {
         "bash".to_string()
     }
 
-    fn needs_line_check(&self, cmd: String) -> bool {
+    fn needs_line_check(&self, _cmd: String) -> bool {
         false
     }
 }

@@ -1,5 +1,6 @@
 //! Shell configuration options
 
+use derive_builder::Builder;
 use std::{cell::RefCell, path::PathBuf, process::ExitStatus, time::Instant};
 
 use dirs::home_dir;

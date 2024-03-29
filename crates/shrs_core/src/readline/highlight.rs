@@ -1,7 +1,5 @@
 //! Syntax highlighting
 
-use std::{collections::HashMap, usize};
-
 use crossterm::style::{Color, ContentStyle};
 use shrs_lang::{Lexer, Token};
 use shrs_utils::styled_buf::StyledBuf;
