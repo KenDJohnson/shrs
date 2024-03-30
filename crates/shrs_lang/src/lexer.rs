@@ -2,7 +2,7 @@
 
 // heavily inspired by https://github.com/nixpulvis/oursh/blob/develop/src/program/posix/lex.rs
 
-use std::str::CharIndices;
+use std::{fmt, iter::Peekable, str::CharIndices};
 
 use lazy_static::lazy_static;
 use thiserror::Error;
@@ -18,7 +18,7 @@ pub type Spanned<Token, Loc, Error> = Result<(Loc, Token, Loc), Error>;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Token<'input> {
+pub enum Token<I> {
     NEWLINE,
     SEMI,
     AMP,
@@ -56,6 +56,7 @@ pub enum Token<'input> {
     FI,
     DO,
     DONE,
+    FUNCTION,
 
     CASE,
     ESAC,
@@ -64,11 +65,77 @@ pub enum Token<'input> {
     FOR,
     IN,
 
-    WORD(&'input str),
-    ASSIGNMENT_WORD(&'input str),
-    FNAME(&'input str),
-    NAME(&'input str),
-    IO_NUMBER(&'input str),
+    WORD(I),
+    ASSIGNMENT_WORD(I),
+    FNAME(I),
+    NAME(I),
+    IO_NUMBER(I),
+}
+
+impl<I: fmt::Display + fmt::Debug> fmt::Display for Token<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::WORD(s)
+            | Self::ASSIGNMENT_WORD(s)
+            | Self::FNAME(s)
+            | Self::NAME(s)
+            | Self::IO_NUMBER(s) => fmt::Display::fmt(s, f),
+            _ => fmt::Debug::fmt(self, f),
+        }
+    }
+}
+
+impl Token<&str> {
+    pub fn into_owned(self) -> Token<String> {
+        use Token::*;
+        match self {
+            NEWLINE => NEWLINE,
+            SEMI => SEMI,
+            AMP => AMP,
+            PIPE => PIPE,
+            BACKTICK => BACKTICK,
+            EQUAL => EQUAL,
+            BACKSLASH => BACKSLASH,
+            SINGLEQUOTE => SINGLEQUOTE,
+            DOUBLEQUOTE => DOUBLEQUOTE,
+            LESS => LESS,
+            GREAT => GREAT,
+            LPAREN => LPAREN,
+            RPAREN => RPAREN,
+            LBRACE => LBRACE,
+            RBRACE => RBRACE,
+            BANG => BANG,
+            AND_IF => AND_IF,
+            OR_IF => OR_IF,
+            DSEMI => DSEMI,
+            DLESS => DLESS,
+            DGREAT => DGREAT,
+            LESSAND => LESSAND,
+            GREATAND => GREATAND,
+            LESSGREAT => LESSGREAT,
+            DLESSDASH => DLESSDASH,
+            CLOBBER => CLOBBER,
+            IF => IF,
+            THEN => THEN,
+            ELSE => ELSE,
+            ELIF => ELIF,
+            FI => FI,
+            DO => DO,
+            DONE => DONE,
+            FUNCTION => FUNCTION,
+            CASE => CASE,
+            ESAC => ESAC,
+            WHILE => WHILE,
+            UNTIL => UNTIL,
+            FOR => FOR,
+            IN => IN,
+            WORD(s) => WORD(s.to_owned()),
+            ASSIGNMENT_WORD(s) => ASSIGNMENT_WORD(s.to_owned()),
+            FNAME(s) => FNAME(s.to_owned()),
+            NAME(s) => NAME(s.to_owned()),
+            IO_NUMBER(s) => IO_NUMBER(s.to_owned()),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Error)]
@@ -81,13 +148,13 @@ pub enum Error {
 #[derive(Clone)]
 pub struct Lexer<'input> {
     input: &'input str,
-    chars: CharIndices<'input>,
+    chars: Peekable<CharIndices<'input>>,
     lookahead: Option<(usize, char, usize)>,
 }
 
 impl<'input> Lexer<'input> {
     pub fn new(input: &'input str) -> Self {
-        let mut chars = input.char_indices();
+        let mut chars = input.char_indices().peekable();
         let next = chars.next();
         let lookahead = next.map(|n| (n.0, n.1, n.0 + n.1.len_utf8()));
         Lexer {
@@ -117,8 +184,16 @@ impl<'input> Lexer<'input> {
         &mut self,
         start: usize,
         end: usize,
-    ) -> Result<(usize, Token<'input>, usize), Error> {
+    ) -> Result<(usize, Token<&'input str>, usize), Error> {
         let (word, end) = self.take_until(start, end, |ch| !is_word_continue(ch));
+        let (word, end) = match (self.lookahead, self.chars.peek().copied()) {
+            (Some((_, '{', _)), Some((new_end, '}'))) => {
+                self.advance();
+                self.advance();
+                self.take_until_inclusive(start, new_end, |ch| !is_word_continue(ch))
+            },
+            _ => (word, end),
+        };
         let token = match word {
             "if" => Token::IF,
             "then" => Token::THEN,
@@ -133,6 +208,7 @@ impl<'input> Lexer<'input> {
             "until" => Token::UNTIL,
             "for" => Token::FOR,
             "in" => Token::IN,
+            "function" => Token::FUNCTION,
             word => Token::WORD(word),
         };
         Ok((start, token, end))
@@ -143,7 +219,7 @@ impl<'input> Lexer<'input> {
         &mut self,
         start: usize,
         end: usize,
-    ) -> Result<(usize, Token<'input>, usize), Error> {
+    ) -> Result<(usize, Token<&'input str>, usize), Error> {
         let (_, end) = self.take_until_inclusive(start, end, |ch| ch == '\'');
         self.advance();
         Ok((start, Token::WORD(&self.input[start..end]), end))
@@ -153,10 +229,21 @@ impl<'input> Lexer<'input> {
         &mut self,
         start: usize,
         end: usize,
-    ) -> Result<(usize, Token<'input>, usize), Error> {
+    ) -> Result<(usize, Token<&'input str>, usize), Error> {
         let (_, end) = self.take_until_inclusive(start, end, |ch| ch == '"');
         self.advance();
         Ok((start, Token::WORD(&self.input[start..end]), end))
+    }
+
+    fn comment(
+        &mut self,
+        start: usize,
+        end: usize,
+    ) -> Option<Result<(usize, Token<&'input str>, usize), Error>> {
+        let _ = self.take_until(start, end, |ch| ch == '\n');
+        let (_, c, end) = self.advance()?;
+        assert_eq!(c, '\n');
+        Some(Ok((start, Token::NEWLINE, end)))
     }
 
     // utils for reading until condition is met
@@ -199,7 +286,7 @@ impl<'input> Lexer<'input> {
 }
 
 impl<'input> Iterator for Lexer<'input> {
-    type Item = Spanned<Token<'input>, usize, Error>;
+    type Item = Spanned<Token<&'input str>, usize, Error>;
 
     // TODO create proc macro to generate all this?
     fn next(&mut self) -> Option<Self::Item> {
@@ -270,6 +357,7 @@ impl<'input> Iterator for Lexer<'input> {
                 '!' => Some(Ok((start, Token::BANG, end))),
                 '\'' => Some(self.single_quote(start, end)),
                 '"' => Some(self.double_quote(start, end)),
+                '#' => self.comment(start, end),
                 ch if is_word_start(ch) => Some(self.keyword(start, end)),
                 ch if ch.is_whitespace() => continue,
                 ch => return Some(Err(Error::UnrecognizedChar(start, ch, end))),

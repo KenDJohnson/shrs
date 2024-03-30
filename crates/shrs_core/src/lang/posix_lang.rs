@@ -21,7 +21,7 @@ pub enum PosixError {
     Hook(),
     /// Issue parsing command
     #[error("Parse failed: {0}")]
-    Parse(ParserError),
+    Parse(ParserError<String>),
     /// Issue evaluating command
     #[error("Failed evaluating command: {0}")]
     Eval(anyhow::Error),
@@ -97,7 +97,7 @@ impl Lang for PosixLang {
             Err(e) => {
                 // TODO detailed parse errors
                 eprintln!("parse error: {e}");
-                return Err(e.into());
+                return Err(e.into_owned().into());
             },
         };
 
@@ -128,7 +128,7 @@ impl Lang for PosixLang {
             }
         };
 
-        let mut brackets: Vec<Token> = vec![];
+        let mut brackets: Vec<Token<&'_ str>> = vec![];
 
         let lexer = Lexer::new(command.as_str());
 

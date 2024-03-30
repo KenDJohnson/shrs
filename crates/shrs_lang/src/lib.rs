@@ -10,10 +10,11 @@ lalrpop_mod!(pub grammar);
 mod parser;
 pub use parser::{Parser, ParserError};
 
-mod lexer;
+pub(crate) mod lexer;
 pub use lexer::{Lexer, Token, RESERVED_WORDS};
 
 pub mod ast;
+pub mod position;
 
 // pub mod process;
 // pub mod eval;

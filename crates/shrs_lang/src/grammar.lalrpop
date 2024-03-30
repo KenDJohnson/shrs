@@ -6,7 +6,7 @@ extern {
     type Location = usize;
     type Error = lexer::Error;
 
-    enum lexer::Token<'input> {
+    enum lexer::Token<&'input str> {
 
 	"\n" => lexer::Token::NEWLINE,
 	";" => lexer::Token::SEMI,
@@ -51,6 +51,7 @@ extern {
 	"until" => lexer::Token::UNTIL,
 	"for" => lexer::Token::FOR,
 	"in" => lexer::Token::IN,
+    "function" => lexer::Token::FUNCTION,
 
 	"WORD" => lexer::Token::WORD(<&'input str>),
 	"ASSIGNMENT_WORD" => lexer::Token::ASSIGNMENT_WORD(<&'input str>),
@@ -62,20 +63,29 @@ extern {
 }
 
 pub Program: ast::Command = {
-    Linebreak <cs:CompleteCommands> Linebreak => cs,
+    Linebreak <cs:CompleteCommands> => cs,
     Linebreak => ast::Command::None,
 }
 
 pub CompleteCommands: ast::Command = {
-    <cs:CompleteCommands> NewlineList <c:CompleteCommand> => ast::Command::SeqList(Box::new(cs), Some(Box::new(c))), // double check seqlist is correct here
-    <c:CompleteCommand> => c,
+    <mut cs:(<CompleteCommand> NewlineList)+> <c:CompleteCommand?> => match c {
+        None if cs.len() > 1 => ast::Command::SeqList(cs),
+        None => cs.remove(0),
+        Some(c) => {
+            cs.push(c);
+            ast::Command::SeqList(cs)
+        }
+    }
+    // <cs:CompleteCommands> NewlineList <c:CompleteCommand> => ast::Command::SeqList(Box::new(cs), Some(Box::new(c))), // double check seqlist is correct here
+    // <c:CompleteCommand> => c,
 }
 
 pub CompleteCommand: ast::Command = {
     <l:List> <s:SeparatorOp> => {
         match s {
 	      ast::SeparatorOp::Amp => ast::Command::AsyncList(Box::new(l), None),
-	      ast::SeparatorOp::Semi => ast::Command::SeqList(Box::new(l), None),
+	      // ast::SeparatorOp::Semi => ast::Command::SeqList(Box::new(l), None),
+	      ast::SeparatorOp::Semi => l,
 	} 
     },
     <l:List> => l,
@@ -85,7 +95,8 @@ pub List: ast::Command = {
     <l:List> <s:SeparatorOp> <a:AndOr> => {
         match s {
 	      ast::SeparatorOp::Amp => ast::Command::AsyncList(Box::new(l), Some(Box::new(a))),
-	      ast::SeparatorOp::Semi => ast::Command::SeqList(Box::new(l), Some(Box::new(a))),
+	      // ast::SeparatorOp::Semi => ast::Command::SeqList(Box::new(l), Some(Box::new(a))),
+	      ast::SeparatorOp::Semi => ast::Command::join_list(l, a),
 	} 
     },
     <a:AndOr> => a,
@@ -131,7 +142,7 @@ pub CompoundCommand: ast::Command = {
 }
 
 // TODO use FNAME token
-pub FunctionDefinition: ast::Command = <fname:"WORD"> "(" ")" Linebreak <body:FunctionBody> => ast::Command::Fn { fname: fname.to_string(), body: Box::new(body) };
+pub FunctionDefinition: ast::Command = "function"? <fname:"WORD"> "(" ")" Linebreak <body:FunctionBody> => ast::Command::Fn { fname: fname.to_string(), body: Box::new(body) };
 
 pub FunctionBody: ast::Command = {
     <c:CompoundCommand> => c,
@@ -153,7 +164,8 @@ pub CompoundList: ast::Command = {
 	match s {
 	      None => t,
 	      Some(ast::SeparatorOp::Amp) => ast::Command::AsyncList(Box::new(t), None),
-	      Some(ast::SeparatorOp::Semi) => ast::Command::SeqList(Box::new(t), None),
+	      // Some(ast::SeparatorOp::Semi) => ast::Command::SeqList(Box::new(t), None),
+	      Some(ast::SeparatorOp::Semi) => t,
 	}
     }
 }
@@ -163,7 +175,8 @@ pub Term: ast::Command = {
 	match s {
 	      None => t,
 	      Some(ast::SeparatorOp::Amp) => ast::Command::AsyncList(Box::new(t), Some(Box::new(a))),
-	      Some(ast::SeparatorOp::Semi) => ast::Command::SeqList(Box::new(t), Some(Box::new(a))),
+	      // Some(ast::SeparatorOp::Semi) => ast::Command::SeqList(Box::new(t), Some(Box::new(a))),
+	      Some(ast::SeparatorOp::Semi) => ast::Command::join_list(t, a),
 	}
     },
     <a:AndOr> => a,

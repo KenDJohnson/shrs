@@ -155,7 +155,7 @@ impl Lang for MuxLang {
             }
         };
 
-        let mut brackets: Vec<Token> = vec![];
+        let mut brackets: Vec<Token<&str>> = vec![];
 
         let lexer = Lexer::new(cmd.as_str());
 

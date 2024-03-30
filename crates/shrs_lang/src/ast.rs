@@ -78,7 +78,8 @@ pub enum Command {
     /// command1 ; command2
     /// ```
     /// We wait for `command1` to finish executing before executing `command2`
-    SeqList(Box<Command>, Option<Box<Command>>),
+    // SeqList(Box<Command>, Option<Box<Command>>),
+    SeqList(Vec<Command>),
 
     /// Subshell for command to run
     /// ```sh
@@ -119,6 +120,26 @@ pub enum Command {
 
     /// No op
     None,
+}
+
+impl Command {
+    pub(crate) fn join_list(a: Self, b: Self) -> Self {
+        match a {
+            Self::SeqList(mut items) => {
+                items.push(b);
+                Self::SeqList(items)
+            },
+            a => match b {
+                Self::SeqList(items) => {
+                    let mut new = Vec::with_capacity(items.len() + 1);
+                    new.push(a);
+                    new.extend(items);
+                    Self::SeqList(new)
+                },
+                b => Self::SeqList(vec![a, b]),
+            },
+        }
+    }
 }
 
 /// Represents each match arm in case statement
